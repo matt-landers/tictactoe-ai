@@ -1,0 +1,58 @@
+#app-status {
+    color: blue;
+    font-family: monospace;
+    font-size: 150%;
+    padding-bottom: 1em;
+  }
+  #cart-pole-canvas {
+    display: none;
+  }
+  button {
+    font-size: 105%;
+    min-width: 120px;
+  }
+  input {
+    font-family: monospace;
+    width: 200px;
+  }
+  .input-div {
+    padding: 5px;
+    font-family: monospace;
+  }
+  .input-label {
+    display: inline-block;
+    width: 15em;
+  }
+  .canvases {
+    display: inline-block;
+  }
+  .horizontal-sections {
+    display: inline-block;
+    padding-left: 0px;
+    padding-right: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin: 5px;
+    vertical-align: top;
+    border: 1px #AAA solid;
+  }
+  .status-span {
+    display: inline-block;
+    width: 150px;
+  }
+  .buttons-section {
+    float: right;
+  }
+  input :disabled {
+    background-color: #AAA,
+  }
+
+  #tictactoe-board {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 2em;
+  }
+
+  table {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 2em;  
+  }

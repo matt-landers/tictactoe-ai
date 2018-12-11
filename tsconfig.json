@@ -3,7 +3,17 @@
     "target": "es5",
     "module": "commonjs",
     "strict": true,
+    "strictNullChecks": false,
     "esModuleInterop": true,
-    "noImplicitAny": false
-  }
+    "noImplicitAny": false,
+    "outDir": "./dist",
+    "lib": ["es2015", "dom"],
+    "sourceMap": true
+  },
+  "files": [
+    "./src/index.ts"
+  ],
+  "exclude":[
+    "node_modules"
+  ]
 }
