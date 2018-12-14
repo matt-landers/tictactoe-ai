@@ -50,7 +50,7 @@ class PolicyNetwork {
         });
         // The last layer has only one unit. The single output number will be
         // converted to a probability of selecting the leftward-force action.
-        this.model.add(tf.layers.dense({ units: 9 }));
+        this.model.add(tf.layers.dense({ units: 9, activation: 'softmax' }));
     }
 
     /**
@@ -64,16 +64,14 @@ class PolicyNetwork {
      *   and 1.
      * @param {number} numGames Number of game to play for each model parameter
      *   update.
-     * @param {number} maxStepsPerGame Maximum number of steps to perform during
-     *   a game. If this number is reached, the game will end immediately.
      * @returns {number[]} The number of steps completed in the `numGames` games
      *   in this round of training.
      */
     async train(
-        ticTacToe: TicTacToe, optimizer, discountRate, numGames, maxStepsPerGame) {
+        ticTacToe: TicTacToe, optimizer, discountRate, numGames) {
         const allGradients = [];
         const allRewards = [];
-        const gameSteps = [];
+        let gameWins = 0;
         onGameEnd(0, numGames);
         for (let i = 0; i < numGames; ++i) {
             // Randomly initialize the state of the cart-pole system at the beginning
@@ -81,38 +79,41 @@ class PolicyNetwork {
             ticTacToe = new TicTacToe();
             const gameRewards = [];
             const gameGradients = [];
-            for (let j = 0; j < maxStepsPerGame; ++j) {
+            for (let j = 0; j <= 9; ++j) { //loop 9 times because that is all the moves there are in tic tac toe
                 // For every step of the game, remember gradients of the policy
                 // network's weights with respect to the probability of the action
                 // choice that lead to the reward.
+                
                 const gradients = tf.tidy(() => {
                     const inputTensor = ticTacToe.BoardState();
                     return this.getGradientsAndSaveActions(inputTensor).grads;
                 });
-
+                
                 this.pushGradients(gameGradients, gradients);
                 const action = this.currentActions_[0];
+                //console.log(this.currentActions_);
                 ticTacToe.performMove(Players.X, action);
                 
                 //Play a random move for O
                 if(ticTacToe.GameState === GameStates.Playing) ticTacToe.performRandomMove(Players.O);
 
                 await maybeRenderDuringTraining(ticTacToe);
-
+                
                 if (ticTacToe.GameState !== GameStates.Playing) {
                     // When the game ends before max step count is reached, a reward of
                     // 0 is given.
-                    gameRewards.push(0);
+                    if(ticTacToe.GameState === GameStates.WinnerX) {
+                        gameRewards.push(1);
+                        console.log(`Wins: ${gameWins++}`);
+                    } else {
+                        gameRewards.push(0);
+                    }
+                    
                     break;
-                } else {
-                    // As long as the game doesn't end, each step leads to a reward of 1.
-                    // These reward values will later be "discounted", leading to
-                    // higher reward values for longer-lasting games.
-                    gameRewards.push(1);
                 }
+                
             }
             onGameEnd(i + 1, numGames);
-            gameSteps.push(gameRewards.length);
             this.pushGradients(allGradients, gameGradients);
             allRewards.push(gameRewards);
             await tf.nextFrame();
@@ -140,7 +141,7 @@ class PolicyNetwork {
                 scaleAndAverageGradients(allGradients, normalizedRewards));
         });
         tf.dispose(allGradients);
-        return gameSteps;
+        return gameWins;
     }
 
     getGradientsAndSaveActions(inputTensor) {
@@ -148,7 +149,7 @@ class PolicyNetwork {
             const [logits, actions] = this.getLogitsAndActions(inputTensor);
             this.currentActions_ = actions.dataSync();
             const labels =
-                tf.sub(1, tf.tensor2d(this.currentActions_, actions.shape));
+                tf.sub(1, tf.tensor(this.currentActions_, actions.shape));
             return tf.losses.sigmoidCrossEntropy(labels, logits).asScalar();
         });
         return tf.variableGrads(f);
@@ -168,13 +169,23 @@ class PolicyNetwork {
      */
     getLogitsAndActions(inputs) {
         return tf.tidy(() => {
+            //console.log(`inputs: ${inputs}`);
             const logits = this.model.predict(inputs);
-            console.log(logits.dataSync().length);
+            //console.log(`logits: ${logits}`);
             // Get the probability of the leftward action.
-            const leftProb = tf.sigmoid(logits);
+            //const sigmoid = tf.sigmoid(logits);
+            
+            //console.log(`sigmoid: ${sigmoid}`)
             // Probabilites of the left and right actions.
-            const leftRightProbs = tf.concat([leftProb, tf.sub(1, leftProb)], 1);
-            const actions = tf.multinomial(leftRightProbs, 1, undefined, true);
+            //const leftRightProbs = tf.concat([sigmoid, tf.sub(1, sigmoid)], 1);
+            //console.log(`concat: ${leftRightProbs}`);
+            let values = logits.dataSync();
+            //console.log(values);
+            const probs = tf.multinomial(values, 9, undefined, true);
+            
+
+            const actions = probs.reshape([1,9])
+            //console.log(`actions: ${actions}`);
             return [logits, actions];
         });
     }

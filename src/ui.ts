@@ -15,7 +15,6 @@ const deleteStoredModelButton = <HTMLButtonElement>document.getElementById('dele
 const numIterationsInput = <HTMLInputElement>document.getElementById('num-iterations');
 const gamesPerIterationInput = <HTMLInputElement>document.getElementById('games-per-iteration');
 const discountRateInput = <HTMLInputElement>document.getElementById('discount-rate');
-const maxStepsPerGameInput = <HTMLInputElement>document.getElementById('max-steps-per-game');
 const learningRateInput = <HTMLInputElement>document.getElementById('learning-rate');
 const renderDuringTrainingCheckbox = <HTMLInputElement>document.getElementById('render-during-training');
 
@@ -31,9 +30,9 @@ const stepsContainer = document.getElementById('steps-container');
 
 const ticTacToeBoard = document.getElementById('tictactoe-board');
 
-let policyNet;
+let policyNet: SaveablePolicyNetwork;
 let stopRequested = false;
-let meanStepValues: Array<any> = [];
+let winsPerIteration: Array<any> = [];
 const ticTacToe = new TicTacToe();
 
 function logStatus(message) {
@@ -50,9 +49,9 @@ export async function maybeRenderDuringTraining(ticTacToe) {
 
 // Objects and function to support the plotting of game steps during training.
 function plotSteps() {
-    tfvis.render.linechart({ values: meanStepValues }, stepsContainer!, {
+    tfvis.render.linechart({ values: winsPerIteration }, stepsContainer!, {
         xLabel: 'Training Iteration',
-        yLabel: 'Mean Steps Per Game',
+        yLabel: 'Wins Per Iteration',
         width: 400,
         height: 300,
     });
@@ -184,10 +183,6 @@ export async function setUpUI() {
                     throw new Error(
                         `Invalid # of games per iterations: ${gamesPerIteration}`);
                 }
-                const maxStepsPerGame = Number.parseInt(maxStepsPerGameInput.value);
-                if (!(maxStepsPerGame > 1)) {
-                    throw new Error(`Invalid max. steps per game: ${maxStepsPerGame}`);
-                }
                 const discountRate = Number.parseFloat(discountRateInput.value);
                 if (!(discountRate > 0 && discountRate < 1)) {
                     throw new Error(`Invalid discount rate: ${discountRate}`);
@@ -200,19 +195,18 @@ export async function setUpUI() {
 
                 const optimizer = tf.train.adam(learningRate);
 
-                meanStepValues = [];
+                winsPerIteration = [];
                 onIterationEnd(0, trainIterations);
                 let t0 = new Date().getTime();
                 stopRequested = false;
                 for (let i = 0; i < trainIterations; ++i) {
-                    const gameSteps = await policyNet.train(
-                        ticTacToe, optimizer, discountRate, gamesPerIteration,
-                        maxStepsPerGame);
+                    const gameWins = await policyNet.train(
+                        ticTacToe, optimizer, discountRate, gamesPerIteration);
                     const t1 = new Date().getTime();
-                    const stepsPerSecond = sum(gameSteps) / ((t1 - t0) / 1e3);
+        
                     t0 = t1;
-                    trainSpeed!.textContent = `${stepsPerSecond.toFixed(1)} steps/s`
-                    meanStepValues.push({ x: i + 1, y: mean(gameSteps) });
+                    trainSpeed!.textContent = `Wins this iteration ${gameWins}`
+                    winsPerIteration.push({ x: i + 1, y: gameWins });
                     console.log(`# of tensors: ${tf.memory().numTensors}`);
                     plotSteps();
                     onIterationEnd(i + 1, trainIterations);
@@ -245,7 +239,7 @@ export async function setUpUI() {
             steps++;
             tf.tidy(() => {
                 const action = policyNet.getActions(ticTacToe.BoardState())[0];
-                console.log(action);
+                
                 logStatus(`Test in progress.`);
                 ticTacToe.performMove(Players.X,action);
                 if(ticTacToe.GameState === GameStates.Playing) ticTacToe.performRandomMove(Players.O);

@@ -30,7 +30,7 @@ export default class TicTacToe {
     
     performMove(player: Players, slot: number): GameStates {
         this.checkTurn(player);
-        this.boardState[slot] = player;
+        if(this.slotState(slot) === 0) this.boardState[slot] = player;
         this.GameState = this.checkForWinnerOrDraw();
         this.PlayerTurn = player === Players.X ? Players.O : Players.X;
         return this.GameState;
